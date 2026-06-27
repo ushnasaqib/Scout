@@ -92,6 +92,21 @@ class AzureLLM(OpenAILLM):
         )
 
 
+class GroqLLM(OpenAILLM):
+    mode = "groq"
+
+    def _model(self):
+        from langchain_openai import ChatOpenAI
+
+        # Groq exposes an OpenAI-compatible endpoint.
+        return ChatOpenAI(
+            model=self.settings.llm_model,
+            api_key=self.settings.groq_api_key,
+            base_url=self.settings.llm_base_url or "https://api.groq.com/openai/v1",
+            temperature=0,
+        )
+
+
 def _llm_rank(model, anomaly: AnomalyEvent, counter: BaseLLM) -> list[Hypothesis]:
     from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -100,7 +115,8 @@ def _llm_rank(model, anomaly: AnomalyEvent, counter: BaseLLM) -> list[Hypothesis
         content=(
             "You are Scout's investigator. Select and RANK the 2-4 most plausible causes "
             f"for the anomaly, choosing ONLY from this fixed taxonomy: {causes}. "
-            "Return JSON list of {cause_type, rationale}. Do not invent causes outside the list."
+            "Respond with ONLY a JSON array (no prose, no markdown) of objects "
+            '{"cause_type", "rationale"}. Do not invent causes outside the list.'
         )
     )
     human = HumanMessage(content=anomaly.model_dump_json())
@@ -109,8 +125,11 @@ def _llm_rank(model, anomaly: AnomalyEvent, counter: BaseLLM) -> list[Hypothesis
     import json
 
     raw = json.loads(_content_json(resp))
+    items = raw if isinstance(raw, list) else next(
+        (v for v in raw.values() if isinstance(v, list)), []
+    )
     out = []
-    for i, item in enumerate(raw):
+    for i, item in enumerate(items):
         try:
             cause = CauseType(item["cause_type"])
         except (KeyError, ValueError):
@@ -127,7 +146,8 @@ def _llm_synthesize(model, anomaly, investigated, at_risk, counter: BaseLLM) -> 
         content=(
             "Write a one-sentence plain-English finding for a Shopify seller. MUST include "
             "the like-for-like comparison and exactly one concrete recommended action. "
-            "Return JSON {headline, recommended_action}. Use only the supplied evidence."
+            "Respond with ONLY a JSON object (no prose, no markdown) with keys "
+            '"headline" and "recommended_action". Use only the supplied evidence.'
         )
     )
     payload = {
@@ -150,11 +170,36 @@ def _usage(resp) -> int:
 
 
 def _content_json(resp) -> str:
+    """Extract the first balanced JSON value from an LLM reply, tolerating prose/markdown
+    fences around it (smaller open models often add explanation text)."""
     text = resp.content if isinstance(resp.content, str) else str(resp.content)
     text = text.strip()
-    if text.startswith("```"):
-        text = text.split("```")[1].lstrip("json").strip()
-    return text
+    if "```" in text:  # take the fenced block if present
+        parts = text.split("```")
+        if len(parts) >= 2:
+            block = parts[1]
+            text = (block[4:] if block.lower().startswith("json") else block).strip()
+    starts = [i for i in (text.find("["), text.find("{")) if i != -1]
+    if not starts:
+        return text
+    start = min(starts)
+    open_ch, close_ch = (text[start], "]" if text[start] == "[" else "}")
+    depth, in_str, esc = 0, False, False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            esc = (ch == "\\") and not esc
+            if ch == '"' and not esc:
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return text[start:]
 
 
 # ── Shared deterministic templating (used by the stub + as a safety net) ──────
@@ -209,5 +254,8 @@ def make_llm(settings: Settings | None = None) -> BaseLLM:
     if settings.llm_mode is LLMMode.azure:
         log.info("llm_backend", mode="azure")
         return AzureLLM(settings)
+    if settings.llm_mode is LLMMode.groq:
+        log.info("llm_backend", mode="groq", model=settings.llm_model)
+        return GroqLLM(settings)
     log.info("llm_backend", mode="stub")
     return StubLLM(settings)

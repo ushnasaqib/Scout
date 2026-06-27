@@ -34,6 +34,7 @@ class LLMMode(str, Enum):
     stub = "stub"
     openai = "openai"
     azure = "azure"
+    groq = "groq"  # OpenAI-compatible API (api.groq.com)
 
 
 class Settings(BaseSettings):
@@ -55,7 +56,9 @@ class Settings(BaseSettings):
     # LLM
     llm_mode: LLMMode = Field(default=LLMMode.stub, alias="SCOUT_LLM_MODE")
     llm_model: str = Field(default="gpt-4.1", alias="SCOUT_LLM_MODEL")
+    llm_base_url: str | None = Field(default=None, alias="SCOUT_LLM_BASE_URL")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
     azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
     azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
     azure_openai_deployment: str | None = Field(default=None, alias="AZURE_OPENAI_DEPLOYMENT")
@@ -111,6 +114,8 @@ class Settings(BaseSettings):
             self.azure_openai_endpoint and self.azure_openai_api_key
         ):
             raise RuntimeError("SCOUT_LLM_MODE=azure but Azure endpoint/key unset.")
+        if self.llm_mode is LLMMode.groq and not self.groq_api_key:
+            raise RuntimeError("SCOUT_LLM_MODE=groq but GROQ_API_KEY is unset.")
 
 
 @lru_cache
