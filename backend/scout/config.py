@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     # Observability
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_json: bool = Field(default=False, alias="LOG_JSON")
+    cors_origins_raw: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:8501",
+        alias="SCOUT_CORS_ORIGINS",
+    )
 
     # Notifications
     slack_enabled: bool = Field(default=False, alias="SLACK_ENABLED")
@@ -89,6 +93,10 @@ class Settings(BaseSettings):
     sendgrid_api_key: str | None = Field(default=None, alias="SENDGRID_API_KEY")
     email_from: str | None = Field(default=None, alias="EMAIL_FROM")
     email_to: str | None = Field(default=None, alias="EMAIL_TO")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
 
     def require_shopify(self) -> None:
         """Fail loud if Shopify is selected but not configured (no silent fallback)."""

@@ -10,6 +10,7 @@ import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from scout.api.persistence import list_findings
@@ -34,6 +35,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Scout", version="0.1.0", lifespan=lifespan)
+
+# Allow the React/Streamlit frontends (different origins) to call the API from the browser.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class RunRequest(BaseModel):
