@@ -23,10 +23,20 @@ def _connect_args(url: str) -> dict:
     return {"check_same_thread": False} if url.startswith("sqlite") else {}
 
 
+def _normalize_url(url: str) -> str:
+    """Managed hosts (Render/Heroku) hand out `postgres://` / `postgresql://` URLs;
+    SQLAlchemy + psycopg3 needs the explicit `postgresql+psycopg://` driver."""
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 def get_engine():
     global _engine, _SessionLocal
     if _engine is None:
-        url = get_settings().database_url
+        url = _normalize_url(get_settings().database_url)
         _engine = create_engine(url, connect_args=_connect_args(url), future=True)
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, future=True)
     return _engine

@@ -23,4 +23,5 @@ COPY alembic.ini ./alembic.ini
 EXPOSE 8000
 
 # Default: the backend API (webhook receiver + on-demand runs + findings).
-CMD ["uvicorn", "scout.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so $PORT (set by Render/Cloud Run/etc.) is honored; falls back to 8000.
+CMD uvicorn scout.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
