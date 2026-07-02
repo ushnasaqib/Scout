@@ -45,7 +45,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: free
+    plan: starter
     dockerCommand: python scripts/scheduler.py
     envVars:
       - key: SCOUT_BACKFILL_INTERVAL
