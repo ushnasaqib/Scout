@@ -23,6 +23,12 @@ backend without creds fails loudly.
 | `SCOUT_DATA_SOURCE` | `demo` (reads the seeded local store) | `shopify` (Admin GraphQL API) |
 | `SCOUT_LLM_MODE` | `stub` (deterministic, no key) | `openai` or `azure` |
 
+## 🔗 Live Demo
+
+- **Live app (real Shopify store):** https://e2ty5ozkrkw4ephimx8dns.streamlit.app
+- **Backend health check:** https://scout-api-6bon.onrender.com/healthz
+- **Demo video:** https://e2ty5ozkrkw4ephimx8dns.streamlit.app/ 
+
 ## Repo layout (frontend / backend split)
 
 ```
