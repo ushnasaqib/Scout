@@ -1,5 +1,7 @@
 # Secrets
 .env
+.env.demo
+.env.live
 
 # Python
 __pycache__/
